@@ -6,6 +6,7 @@ terraform {
     }
   }
 
+  backend "s3" {}
   required_version = ">= 0.14.9"
 }
 
@@ -21,15 +22,8 @@ variable "aws_region" {
   nullable = false
 }
 
-variable "aws_profile" {
-  type     = string
-  default  = "default"
-  nullable = false
-}
-
 provider "aws" {
-  profile = var.aws_profile
-  region  = var.aws_region
+  region = var.aws_region
 }
 
 variable "terraform_state" {

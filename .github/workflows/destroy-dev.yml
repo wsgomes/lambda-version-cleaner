@@ -5,15 +5,18 @@ on:
     types: [closed]
 
 jobs:
-  destroy:
+  get_pr_number:
     runs-on: ubuntu-latest
-
+    outputs:
+      pr_number: ${{ steps.get_pr_number.outputs.pr_number }}
     steps:
     - name: Get PR Number
       id: get_pr_number
-      run: echo "::set-output name=pr_number::$(echo $GITHUB_REF | awk -F'/' '{print $3}')"
+      run: echo "pr_number=$(echo $GITHUB_REF | awk -F'/' '{print $3}')" >> "$GITHUB_OUTPUT"
 
-    - name: Call Reusable Destroy Workflow
-      uses: ./.github/workflows/terraform-destroy.yml
-      with:
-        terraform_state: dev-pr${{ steps.get_pr_number.outputs.pr_number }}
+  deploy_dev:
+    needs: get_pr_number
+    uses: ./.github/workflows/terraform-destroy.yml
+    secrets: inherit
+    with:
+      terraform_state: dev-pr${{ needs.get_pr_number.outputs.pr_number }}
