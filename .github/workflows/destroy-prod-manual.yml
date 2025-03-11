@@ -1,0 +1,10 @@
+name: Manually Destroy Production Environment
+
+on:
+  workflow_dispatch:
+
+jobs:
+  destroy:
+    uses: ./.github/workflows/terraform-destroy.yml
+    with:
+      terraform_state: prod

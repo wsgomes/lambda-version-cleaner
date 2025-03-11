@@ -1,0 +1,10 @@
+name: Manually Apply Production Environment
+
+on:
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    uses: ./.github/workflows/terraform-apply.yml
+    with:
+      terraform_state: prod

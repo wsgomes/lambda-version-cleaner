@@ -1,0 +1,19 @@
+name: Deploy to Development
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Get PR Number
+      id: get_pr_number
+      run: echo "::set-output name=pr_number::$(echo $GITHUB_REF | awk -F'/' '{print $3}')"
+
+    - name: Call Reusable Apply Workflow
+      uses: ./.github/workflows/terraform-apply.yml
+      with:
+        terraform_state: dev-pr${{ steps.get_pr_number.outputs.pr_number }}

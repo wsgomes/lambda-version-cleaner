@@ -32,6 +32,16 @@ provider "aws" {
   region  = var.aws_region
 }
 
+variable "terraform_state" {
+  type     = string
+  nullable = false
+
+  validation {
+    condition     = can(regex("^(prod|dev-pr[0-9]+)$", var.terraform_state))
+    error_message = "The terraform_state variable must be 'prod' or 'dev-pr<PR_NUMBER>' where <PR_NUMBER> is a positive integer."
+  }
+}
+
 variable "schedule_expression" {
   type     = string
   default  = "cron(0 3 * * ? *)"
