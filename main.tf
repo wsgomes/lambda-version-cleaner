@@ -190,6 +190,7 @@ resource "aws_lambda_alias" "lambda_alias" {
 resource "aws_cloudwatch_event_rule" "lambda_schedule" {
   name                = "${var.name}_rule"
   schedule_expression = var.schedule_expression
+  is_enabled          = false
   tags                = local.tags
 }
 
