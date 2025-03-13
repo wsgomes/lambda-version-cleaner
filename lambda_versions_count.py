@@ -3,7 +3,7 @@ import csv
 
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-lambda_client = boto3.client('lambda', region_name='us-west-2')
+lambda_client = boto3.client('lambda', region_name='us-east-1')
 
 def count_versions(function_name):
     versions = []
