@@ -2,12 +2,12 @@ terraform {
   required_providers {
     aws = {
       source  = "hashicorp/aws"
-      version = "~> 4.30.0"
+      version = "~> 5.91.0"
     }
   }
 
   backend "s3" {}
-  required_version = ">= 0.14.9"
+  required_version = ">= 1.0.0"
 }
 
 variable "name" {
@@ -178,7 +178,7 @@ resource "aws_lambda_alias" "lambda_alias" {
 resource "aws_cloudwatch_event_rule" "lambda_schedule" {
   name                = "${var.name}_rule"
   schedule_expression = var.schedule_expression
-  is_enabled          = false
+  state               = "DISABLED"
   tags                = local.tags
 }
 
