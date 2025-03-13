@@ -1,33 +1,30 @@
 import os
 import re
 import boto3
-import threading
+
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 lambda_client = boto3.client('lambda', region_name=os.getenv('THIS_AWS_REGION', None))
 
 keep = int(os.getenv('VERSIONS_TO_KEEP', '3'))
 pattern = os.getenv('FUNCTION_NAME_PATTERN', '.*')  # Default to match all if not provided
 function_names = os.getenv('FUNCTION_NAMES', '')  # Comma-separated list of function names
+thread_pool_size = int(os.getenv('THREAD_POOL_SIZE', '20'))  # Default thread pool size is 20
 
-class ExceptionThread(threading.Thread):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self._exception = None
-
-    def run(self):
-        try:
-            if self._target:
-                self._target(*self._args, **self._kwargs)
-        except Exception as e:
-            self._exception = e
-
-    def join(self, *args, **kwargs):
-        super().join(*args, **kwargs)
-        return self._exception
+def list_all_versions(function_name):
+    versions = []
+    response = lambda_client.list_versions_by_function(FunctionName=function_name)
+    versions.extend(response['Versions'])
+    
+    while 'NextMarker' in response:
+        response = lambda_client.list_versions_by_function(FunctionName=function_name, Marker=response['NextMarker'])
+        versions.extend(response['Versions'])
+    
+    return versions
 
 def process_function_versions(function_name):
-    response = lambda_client.list_versions_by_function(FunctionName=function_name)
-    versions = [int(v['Version']) for v in response['Versions'] if v['Version'] != '$LATEST']
+    versions = list_all_versions(function_name)
+    versions = [int(v['Version']) for v in versions if v['Version'] != '$LATEST']
     if len(versions) <= keep:
         print(f"Function {function_name} has {len(versions)} versions, skipping")
         return
@@ -38,26 +35,34 @@ def process_function_versions(function_name):
         lambda_client.delete_function(FunctionName=function_name, Qualifier=str(version))
         print(f"Deleted version {version} of function {function_name}")
 
+def list_all_functions():
+    functions = []
+    response = lambda_client.list_functions()
+    functions.extend(response['Functions'])
+    
+    while 'NextMarker' in response:
+        response = lambda_client.list_functions(Marker=response['NextMarker'])
+        functions.extend(response['Functions'])
+    
+    return [function['FunctionName'] for function in functions]
+
 def lambda_handler(event, context):
     exceptions = []
     try:
         if function_names:
             functions = function_names.split(',')
         else:
-            response = lambda_client.list_functions()
-            functions = [function['FunctionName'] for function in response['Functions']]
+            functions = list_all_functions()
         
-        threads = []
-        for function_name in functions:
-            if re.match(pattern, function_name):
-                thread = ExceptionThread(target=process_function_versions, args=(function_name,))
-                threads.append(thread)
-                thread.start()
-        
-        for thread in threads:
-            exception = thread.join()
-            if exception:
-                exceptions.append(str(exception))
+        with ThreadPoolExecutor(max_workers=thread_pool_size) as executor:
+            future_to_function = {executor.submit(process_function_versions, function_name): function_name for function_name in functions if re.match(pattern, function_name)}
+            
+            for future in as_completed(future_to_function):
+                function_name = future_to_function[future]
+                try:
+                    future.result()
+                except Exception as e:
+                    exceptions.append(f"Function {function_name}: {str(e)}")
     
     except Exception as e:
         exceptions.append(str(e))
